@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Reading Practice Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .controls-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9ff;
+            border-radius: 15px;
+            border: 2px solid #e1e8ff;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.9rem;
+        }
+
+        .control-group input, .control-group select {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .playback-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .text-input {
+            margin-bottom: 30px;
+        }
+
+        .text-input label {
+            display: block;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .text-input textarea {
+            width: 100%;
+            height: 200px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            font-size: 1rem;
+            line-height: 1.6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .text-input textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .reading-area {
+            background: #f8f9ff;
+            border: 2px solid #e1e8ff;
+            border-radius: 15px;
+            padding: 30px;
+            min-height: 200px;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #2d3748;
+        }
+
+        .reading-area.empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a0aec0;
+            font-style: italic;
+        }
+
+        .word {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .word:hover {
+            background-color: #e1e8ff !important;
+        }
+
+        .word.current {
+            font-weight: bold;
+            transform: scale(1.05);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status.info {
+            background: #e1f5fe;
+            color: #0277bd;
+            border: 2px solid #b3e5fc;
+        }
+
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 2px solid #c8e6c9;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 2px solid #ffcdd2;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .controls-section {
+                padding: 20px;
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .playback-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+
+            .text-input textarea {
+                height: 150px;
+                padding: 15px;
+            }
+
+            .reading-area {
+                padding: 20px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 20px 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
+            .controls-section {
+                padding: 15px;
+            }
+
+            .text-input textarea {
+                height: 120px;
+                padding: 12px;
+            }
+
+            .reading-area {
+                padding: 15px;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 English Reading Practice</h1>
+            <p>Improve your pronunciation with synchronized text highlighting</p>
+        </div>
+
+        <div class="main-content">
+            <div class="controls-section">
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label for="highlightColor">Highlight Color:</label>
+                        <input type="color" id="highlightColor" value="#ffeb3b">
+                    </div>
+                    <div class="control-group">
+                        <label for="speechRate">Speech Rate:</label>
+                        <input type="range" id="speechRate" min="0.5" max="2" step="0.1" value="1">
+                        <span id="rateValue">1.0x</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="speechPitch">Speech Pitch:</label>
+                        <input type="range" id="speechPitch" min="0.5" max="2" step="0.1" value="1">
+                        <span id="pitchValue">1.0x</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="voiceSelect">Voice:</label>
+                        <select id="voiceSelect">
+                            <option value="">Loading voices...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="playback-controls">
+                    <button class="btn btn-primary" id="playBtn">
+                        <span>▶️</span> Play
+                    </button>
+                    <button class="btn btn-secondary" id="pauseBtn" disabled>
+                        <span>⏸️</span> Pause
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" disabled>
+                        <span>⏹️</span> Stop
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-input">
+                <label for="textInput">Enter or paste your English text:</label>
+                <textarea id="textInput" placeholder="Type or paste your English text here to start practicing pronunciation with synchronized highlighting..."></textarea>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="reading-area empty" id="readingArea">
+                <p>Your text will appear here with synchronized highlighting as it's being read aloud.</p>
+            </div>
+
+            <div class="status info" id="status">
+                Ready to start! Enter some text above and click Play.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class EnglishReadingTool {
+            constructor() {
+                this.currentWordIndex = 0;
+                this.words = [];
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.speechSynthesis = window.speechSynthesis;
+                this.currentUtterance = null;
+                this.wordTimeouts = [];
+
+                this.initializeElements();
+                this.loadVoices();
+                this.loadSettings();
+                this.setupEventListeners();
+            }
+
+            initializeElements() {
+                this.textInput = document.getElementById('textInput');
+                this.readingArea = document.getElementById('readingArea');
+                this.playBtn = document.getElementById('playBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.highlightColor = document.getElementById('highlightColor');
+                this.speechRate = document.getElementById('speechRate');
+                this.speechPitch = document.getElementById('speechPitch');
+                this.voiceSelect = document.getElementById('voiceSelect');
+                this.rateValue = document.getElementById('rateValue');
+                this.pitchValue = document.getElementById('pitchValue');
+                this.progressFill = document.getElementById('progressFill');
+                this.status = document.getElementById('status');
+            }
+
+            loadVoices() {
+                const updateVoices = () => {
+                    const voices = this.speechSynthesis.getVoices();
+                    const englishVoices = voices.filter(voice => 
+                        voice.lang.startsWith('en')
+                    );
+
+                    this.voiceSelect.innerHTML = '';
+                    
+                    if (englishVoices.length === 0) {
+                        this.voiceSelect.innerHTML = '<option value="">No English voices available</option>';
+                        return;
+                    }
+
+                    englishVoices.forEach((voice, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        if (voice.default) {
+                            option.selected = true;
+                        }
+                        this.voiceSelect.appendChild(option);
+                    });
+                };
+
+                updateVoices();
+                this.speechSynthesis.onvoiceschanged = updateVoices;
+            }
+
+            loadSettings() {
+                const savedColor = localStorage.getItem('highlightColor');
+                const savedRate = localStorage.getItem('speechRate');
+                const savedPitch = localStorage.getItem('speechPitch');
+
+                if (savedColor) this.highlightColor.value = savedColor;
+                if (savedRate) {
+                    this.speechRate.value = savedRate;
+                    this.rateValue.textContent = `${savedRate}x`;
+                }
+                if (savedPitch) {
+                    this.speechPitch.value = savedPitch;
+                    this.pitchValue.textContent = `${savedPitch}x`;
+                }
+            }
+
+            saveSettings() {
+                localStorage.setItem('highlightColor', this.highlightColor.value);
+                localStorage.setItem('speechRate', this.speechRate.value);
+                localStorage.setItem('speechPitch', this.speechPitch.value);
+            }
+
+            setupEventListeners() {
+                this.playBtn.addEventListener('click', () => this.play());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.stopBtn.addEventListener('click', () => this.stop());
+
+                this.textInput.addEventListener('input', () => this.processText());
+
+                this.speechRate.addEventListener('input', () => {
+                    this.rateValue.textContent = `${this.speechRate.value}x`;
+                    this.saveSettings();
+                });
+
+                this.speechPitch.addEventListener('input', () => {
+                    this.pitchValue.textContent = `${this.speechPitch.value}x`;
+                    this.saveSettings();
+                });
+
+                this.highlightColor.addEventListener('change', () => {
+                    this.saveSettings();
+                });
+
+                // Process text on page load if there's content
+                if (this.textInput.value.trim()) {
+                    this.processText();
+                }
+            }
+
+            processText() {
+                const text = this.textInput.value.trim();
+                
+                if (!text) {
+                    this.readingArea.innerHTML = '<p>Your text will appear here with synchronized highlighting as it\'s being read aloud.</p>';
+                    this.readingArea.classList.add('empty');
+                    this.updateStatus('Ready to start! Enter some text above and click Play.', 'info');
+                    return;
+                }
+
+                this.readingArea.classList.remove('empty');
+                
+                // Split text into words while preserving punctuation
+                this.words = text.match(/\S+/g) || [];
+                
+                // Create HTML with word spans
+                const wordsHtml = this.words.map((word, index) => 
+                    `<span class="word" data-index="${index}">${word}</span>`
+                ).join(' ');
+
+                this.readingArea.innerHTML = wordsHtml;
+                this.updateStatus(`Text processed. ${this.words.length} words ready to read.`, 'success');
+                
+                // Reset progress
+                this.currentWordIndex = 0;
+                this.progressFill.style.width = '0%';
+            }
+
+            play() {
+                if (!this.words.length) {
+                    this.updateStatus('Please enter some text first!', 'error');
+                    return;
+                }
+
+                if (this.isPaused) {
+                    this.speechSynthesis.resume();
+                    this.isPaused = false;
+                    this.updateButtonStates();
+                    this.updateStatus('Resumed reading...', 'info');
+                    return;
+                }
+
+                this.isPlaying = true;
+                this.updateButtonStates();
+                this.updateStatus('Reading in progress...', 'info');
+
+                this.startReading();
+            }
+
+            pause() {
+                if (this.isPlaying) {
+                    this.speechSynthesis.pause();
+                    this.isPaused = true;
+                    this.updateButtonStates();
+                    this.updateStatus('Reading paused.', 'info');
+                }
+            }
+
+            stop() {
+                this.speechSynthesis.cancel();
+                this.clearWordTimeouts();
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.currentWordIndex = 0;
+                this.updateButtonStates();
+                this.clearHighlights();
+                this.progressFill.style.width = '0%';
+                this.updateStatus('Reading stopped.', 'info');
+            }
+
+            startReading() {
+                const text = this.words.join(' ');
+                this.currentUtterance = new SpeechSynthesisUtterance(text);
+                
+                // Set voice
+                const voices = this.speechSynthesis.getVoices();
+                const englishVoices = voices.filter(voice => voice.lang.startsWith('en'));
+                const selectedVoiceIndex = parseInt(this.voiceSelect.value);
+                if (englishVoices[selectedVoiceIndex]) {
+                    this.currentUtterance.voice = englishVoices[selectedVoiceIndex];
+                }
+
+                // Set speech parameters
+                this.currentUtterance.rate = parseFloat(this.speechRate.value);
+                this.currentUtterance.pitch = parseFloat(this.speechPitch.value);
+                this.currentUtterance.volume = 1;
+
+                // Calculate approximate timing for word highlighting
+                const wordsPerSecond = this.currentUtterance.rate * 3; // Approximate
+                const wordDuration = 1000 / wordsPerSecond;
+
+                // Start highlighting words
+                this.startWordHighlighting(wordDuration);
+
+                // Speech synthesis event handlers
+                this.currentUtterance.onend = () => {
+                    this.isPlaying = false;
+                    this.isPaused = false;
+                    this.updateButtonStates();
+                    this.clearHighlights();
+                    this.progressFill.style.width = '100%';
+                    this.updateStatus('Reading completed!', 'success');
+                };
+
+                this.currentUtterance.onerror = (event) => {
+                    this.updateStatus(`Speech error: ${event.error}`, 'error');
+                    this.stop();
+                };
+
+                this.speechSynthesis.speak(this.currentUtterance);
+            }
+
+            startWordHighlighting(wordDuration) {
+                this.clearWordTimeouts();
+                
+                this.words.forEach((word, index) => {
+                    const timeout = setTimeout(() => {
+                        if (this.isPlaying && !this.isPaused) {
+                            this.highlightWord(index);
+                        }
+                    }, index * wordDuration);
+                    
+                    this.wordTimeouts.push(timeout);
+                });
+            }
+
+            highlightWord(index) {
+                this.clearHighlights();
+                
+                const wordElement = document.querySelector(`[data-index="${index}"]`);
+                if (wordElement) {
+                    wordElement.style.backgroundColor = this.highlightColor.value;
+                    wordElement.classList.add('current');
+                    
+                    // Scroll into view if needed
+                    wordElement.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }
+
+                this.currentWordIndex = index;
+                const progress = ((index + 1) / this.words.length) * 100;
+                this.progressFill.style.width = `${progress}%`;
+            }
+
+            clearHighlights() {
+                document.querySelectorAll('.word').forEach(word => {
+                    word.style.backgroundColor = '';
+                    word.classList.remove('current');
+                });
+            }
+
+            clearWordTimeouts() {
+                this.wordTimeouts.forEach(timeout => clearTimeout(timeout));
+                this.wordTimeouts = [];
+            }
+
+            updateButtonStates() {
+                this.playBtn.disabled = this.isPlaying && !this.isPaused;
+                this.pauseBtn.disabled = !this.isPlaying || this.isPaused;
+                this.stopBtn.disabled = !this.isPlaying;
+            }
+
+            updateStatus(message, type) {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+            }
+        }
+
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new EnglishReadingTool();
+        });
+    </script>
+</body>
+</html>
