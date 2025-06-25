@@ -527,6 +527,8 @@
                 this.speechSynthesis = window.speechSynthesis;
                 this.currentUtterance = null;
                 this.wordTimeouts = [];
+                this.wordTranslations = new Map();
+                this.isTranslating = false;
 
                 this.initializeElements();
                 this.loadVoices();
@@ -548,6 +550,9 @@
                 this.pitchValue = document.getElementById('pitchValue');
                 this.progressFill = document.getElementById('progressFill');
                 this.status = document.getElementById('status');
+                this.translateBtn = document.getElementById('translateBtn');
+                this.translationArea = document.getElementById('translationArea');
+                this.wordTooltip = document.getElementById('wordTooltip');
             }
 
             loadVoices() {
@@ -605,6 +610,7 @@
                 this.playBtn.addEventListener('click', () => this.play());
                 this.pauseBtn.addEventListener('click', () => this.pause());
                 this.stopBtn.addEventListener('click', () => this.stop());
+                this.translateBtn.addEventListener('click', () => this.translateFullText());
 
                 this.textInput.addEventListener('input', () => this.processText());
 
@@ -620,6 +626,13 @@
 
                 this.highlightColor.addEventListener('change', () => {
                     this.saveSettings();
+                });
+
+                // Hide tooltip when clicking elsewhere
+                document.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('word')) {
+                        this.hideTooltip();
+                    }
                 });
 
                 // Process text on page load if there's content
@@ -645,15 +658,26 @@
                 
                 // Create HTML with word spans
                 const wordsHtml = this.words.map((word, index) => 
-                    `<span class="word" data-index="${index}">${word}</span>`
+                    `<span class="word" data-index="${index}" data-word="${word.replace(/[^\w]/g, '')}">${word}</span>`
                 ).join(' ');
 
                 this.readingArea.innerHTML = wordsHtml;
+
+                // Add event listeners to words for translation tooltip
+                this.readingArea.querySelectorAll('.word').forEach(wordElement => {
+                    wordElement.addEventListener('click', (e) => {
+                        this.showWordTranslation(e.target);
+                    });
+                });
+
                 this.updateStatus(`Text processed. ${this.words.length} words ready to read.`, 'success');
                 
-                // Reset progress
+                // Reset progress and clear previous translations
                 this.currentWordIndex = 0;
                 this.progressFill.style.width = '0%';
+                this.translationArea.innerHTML = '<p>Click "Translate Text" to see the Portuguese translation here.</p>';
+                this.translationArea.classList.add('empty');
+                this.wordTranslations.clear();
             }
 
             play() {
@@ -795,6 +819,314 @@
             updateStatus(message, type) {
                 this.status.textContent = message;
                 this.status.className = `status ${type}`;
+            }
+
+            // Translation Methods
+            async translateText(text, from = 'en', to = 'pt') {
+                // Try multiple translation services
+                const translationServices = [
+                    // Service 1: MyMemory
+                    async () => {
+                        const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`);
+                        const data = await response.json();
+                        if (data.responseStatus === 200 && data.responseData.translatedText) {
+                            return data.responseData.translatedText;
+                        }
+                        throw new Error('MyMemory failed');
+                    },
+                    
+                    // Service 2: LibreTranslate (alternative)
+                    async () => {
+                        const response = await fetch('https://libretranslate.de/translate', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                q: text,
+                                source: from,
+                                target: to,
+                                format: 'text'
+                            }),
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const data = await response.json();
+                        if (data.translatedText) {
+                            return data.translatedText;
+                        }
+                        throw new Error('LibreTranslate failed');
+                    },
+
+                    // Service 3: Google Translate (via proxy)
+                    async () => {
+                        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+                        const data = await response.json();
+                        if (data && data[0] && data[0][0] && data[0][0][0]) {
+                            return data[0][0][0];
+                        }
+                        throw new Error('Google Translate failed');
+                    }
+                ];
+
+                // Try each service in order
+                for (let i = 0; i < translationServices.length; i++) {
+                    try {
+                        console.log(`Trying translation service ${i + 1}...`);
+                        const result = await translationServices[i]();
+                        if (result && result.trim()) {
+                            console.log(`Translation successful with service ${i + 1}`);
+                            return result.trim();
+                        }
+                    } catch (error) {
+                        console.log(`Service ${i + 1} failed:`, error.message);
+                        continue;
+                    }
+                }
+
+                // If all services fail, try a basic dictionary approach for single words
+                if (text.split(' ').length === 1) {
+                    const basicTranslations = this.getBasicTranslation(text.toLowerCase());
+                    if (basicTranslations) {
+                        return basicTranslations;
+                    }
+                }
+
+                throw new Error('All translation services failed');
+            }
+
+            getBasicTranslation(word) {
+                // Basic dictionary for common words as fallback
+                const dictionary = {
+                    'hello': 'olá',
+                    'world': 'mundo',
+                    'good': 'bom/boa',
+                    'bad': 'ruim',
+                    'yes': 'sim',
+                    'no': 'não',
+                    'please': 'por favor',
+                    'thank': 'obrigado',
+                    'thanks': 'obrigado',
+                    'you': 'você',
+                    'me': 'eu/mim',
+                    'I': 'eu',
+                    'we': 'nós',
+                    'they': 'eles/elas',
+                    'he': 'ele',
+                    'she': 'ela',
+                    'it': 'isso',
+                    'the': 'o/a',
+                    'and': 'e',
+                    'or': 'ou',
+                    'but': 'mas',
+                    'if': 'se',
+                    'when': 'quando',
+                    'where': 'onde',
+                    'what': 'o que',
+                    'who': 'quem',
+                    'how': 'como',
+                    'why': 'por que',
+                    'time': 'tempo',
+                    'day': 'dia',
+                    'night': 'noite',
+                    'morning': 'manhã',
+                    'afternoon': 'tarde',
+                    'evening': 'noite',
+                    'today': 'hoje',
+                    'tomorrow': 'amanhã',
+                    'yesterday': 'ontem',
+                    'now': 'agora',
+                    'here': 'aqui',
+                    'there': 'lá',
+                    'home': 'casa',
+                    'work': 'trabalho',
+                    'school': 'escola',
+                    'food': 'comida',
+                    'water': 'água',
+                    'house': 'casa',
+                    'car': 'carro',
+                    'book': 'livro',
+                    'read': 'ler',
+                    'write': 'escrever',
+                    'speak': 'falar',
+                    'listen': 'ouvir',
+                    'see': 'ver',
+                    'look': 'olhar',
+                    'think': 'pensar',
+                    'know': 'saber',
+                    'understand': 'entender',
+                    'learn': 'aprender',
+                    'teach': 'ensinar',
+                    'study': 'estudar',
+                    'love': 'amor/amar',
+                    'like': 'gostar',
+                    'want': 'querer',
+                    'need': 'precisar',
+                    'have': 'ter',
+                    'get': 'conseguir/pegar',
+                    'give': 'dar',
+                    'take': 'pegar',
+                    'go': 'ir',
+                    'come': 'vir',
+                    'run': 'correr',
+                    'walk': 'caminhar',
+                    'sit': 'sentar',
+                    'stand': 'ficar de pé',
+                    'sleep': 'dormir',
+                    'eat': 'comer',
+                    'drink': 'beber',
+                    'play': 'jogar/brincar',
+                    'stop': 'parar',
+                    'start': 'começar',
+                    'finish': 'terminar',
+                    'open': 'abrir',
+                    'close': 'fechar',
+                    'big': 'grande',
+                    'small': 'pequeno',
+                    'new': 'novo',
+                    'old': 'velho',
+                    'young': 'jovem',
+                    'fast': 'rápido',
+                    'slow': 'lento',
+                    'hot': 'quente',
+                    'cold': 'frio',
+                    'happy': 'feliz',
+                    'sad': 'triste',
+                    'angry': 'bravo',
+                    'tired': 'cansado',
+                    'hungry': 'com fome',
+                    'thirsty': 'com sede',
+                    'beautiful': 'bonito/linda',
+                    'ugly': 'feio',
+                    'easy': 'fácil',
+                    'hard': 'difícil',
+                    'right': 'certo/direita',
+                    'wrong': 'errado',
+                    'left': 'esquerda',
+                    'up': 'para cima',
+                    'down': 'para baixo',
+                    'in': 'em/dentro',
+                    'out': 'fora',
+                    'on': 'em/sobre',
+                    'off': 'desligado',
+                    'with': 'com',
+                    'without': 'sem',
+                    'before': 'antes',
+                    'after': 'depois',
+                    'first': 'primeiro',
+                    'last': 'último',
+                    'next': 'próximo',
+                    'previous': 'anterior',
+                    'one': 'um',
+                    'two': 'dois',
+                    'three': 'três',
+                    'four': 'quatro',
+                    'five': 'cinco',
+                    'six': 'seis',
+                    'seven': 'sete',
+                    'eight': 'oito',
+                    'nine': 'nove',
+                    'ten': 'dez',
+                    'hundred': 'cem',
+                    'thousand': 'mil',
+                    'million': 'milhão',
+                    'money': 'dinheiro',
+                    'free': 'grátis/livre',
+                    'expensive': 'caro',
+                    'cheap': 'barato'
+                };
+
+                return dictionary[word] || null;
+            }
+
+            async showWordTranslation(wordElement) {
+                const word = wordElement.getAttribute('data-word').toLowerCase();
+                const originalWord = wordElement.textContent;
+                
+                if (!word) return;
+
+                // Check if translation is already cached
+                if (this.wordTranslations.has(word)) {
+                    this.showTooltip(wordElement, this.wordTranslations.get(word));
+                    return;
+                }
+
+                // Show loading tooltip
+                this.showTooltip(wordElement, '<div class="loading"></div> Translating...');
+
+                // Fetch translation
+                const translation = await this.translateText(word);
+                this.wordTranslations.set(word, translation);
+                
+                // Update tooltip with translation
+                this.showTooltip(wordElement, translation);
+            }
+
+            showTooltip(element, text) {
+                const rect = element.getBoundingClientRect();
+                const tooltip = this.wordTooltip;
+                
+                tooltip.innerHTML = text;
+                tooltip.style.left = `${rect.left + rect.width / 2}px`;
+                tooltip.style.top = `${rect.top - 10}px`;
+                
+                // Adjust position if tooltip goes off screen
+                const tooltipRect = tooltip.getBoundingClientRect();
+                if (tooltipRect.right > window.innerWidth) {
+                    tooltip.style.left = `${window.innerWidth - tooltipRect.width - 10}px`;
+                }
+                if (tooltipRect.left < 0) {
+                    tooltip.style.left = '10px';
+                }
+                
+                tooltip.classList.add('show');
+            }
+
+            hideTooltip() {
+                this.wordTooltip.classList.remove('show');
+            }
+
+            async translateFullText() {
+                const text = this.textInput.value.trim();
+                
+                if (!text) {
+                    this.updateStatus('Please enter some text to translate!', 'error');
+                    return;
+                }
+
+                if (this.isTranslating) return;
+
+                this.isTranslating = true;
+                this.translateBtn.disabled = true;
+                this.translateBtn.innerHTML = '<div class="loading"></div> Translating...';
+                
+                try {
+                    // Split text into chunks if it's too long
+                    const maxChunkLength = 500;
+                    const sentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
+                    let translatedText = '';
+
+                    for (let i = 0; i < sentences.length; i++) {
+                        const sentence = sentences[i].trim();
+                        if (sentence) {
+                            const translation = await this.translateText(sentence);
+                            translatedText += translation + ' ';
+                            
+                            // Add small delay to avoid rate limiting
+                            if (i < sentences.length - 1) {
+                                await new Promise(resolve => setTimeout(resolve, 200));
+                            }
+                        }
+                    }
+
+                    this.translationArea.innerHTML = translatedText.trim();
+                    this.translationArea.classList.remove('empty');
+                    this.updateStatus('Text translated successfully!', 'success');
+
+                } catch (error) {
+                    this.updateStatus('Translation failed. Please try again.', 'error');
+                    console.error('Translation error:', error);
+                } finally {
+                    this.isTranslating = false;
+                    this.translateBtn.disabled = false;
+                    this.translateBtn.innerHTML = '<span>🔄</span> Translate Text';
+                }
             }
         }
 
